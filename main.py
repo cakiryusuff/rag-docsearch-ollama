@@ -1,8 +1,8 @@
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain.schema.document import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from chroma_class import chroma_search
-from faiss_class import faiss_search
+from chroma_class import ChromaClass
+from faiss_class import FaissClass
 from ollama import Client
 
 client = Client(
@@ -27,38 +27,44 @@ def split_documents(documents: list[Document]):
 def main():
     docs = load_documents()
     chunks = split_documents(docs)
-
+    
+    input_text = input("Please choose one of the following: 1. faiss 2. chroma\n")
+    
+    if input_text.strip().lower() in ("faiss", "1"):
+        search_class = FaissClass(chunks)
+    
+    elif input_text.strip().lower() in ("chroma", "2"):
+        search_class = ChromaClass(chunks)
+    else:
+        print("Invalid choice. Please try again.")
+    
     while True:
         user_input = input("Please enter your question: \n")
-        input_text = input("Please choose one of the following: 1. faiss 2. chroma\n")
-        if input_text.strip().lower() in ("faiss", "1"):
-            results = faiss_search(chunks, user_input, top_k=2)
+        
+        if user_input.strip().lower() == "exit":
             break
-        elif input_text.strip().lower() in ("chroma", "2"):
-            results = chroma_search(chunks, user_input, top_k=2)
-            break
-        else:
-            print("Invalid choice. Please try again.")
+        
+        results = search_class.search(user_input)
 
-    response = client.chat(
-        model='qwen2.5',
-        messages=[
-            {
-                'role': 'system',
-                'content': 'You are a helpful assistant that uses provided documents to answer questions.',
-            },
-            {
-                'role': 'user',
-                'content': user_input,
-            },
-            {
-                'role': 'system',
-                'content': f'Documents: {results}'
-            }
-        ],
-    )
+        response = client.chat(
+                model='qwen2.5',
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': 'You are a helpful assistant that uses provided documents to answer questions.',
+                    },
+                    {
+                        'role': 'user',
+                        'content': user_input,
+                    },
+                    {
+                        'role': 'system',
+                        'content': f'Documents: {results}'
+                    }
+                ],
+            )
 
-    print(response)
+        print(response)
 
 if __name__ == "__main__":
     main()
